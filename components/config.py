@@ -5,11 +5,11 @@ Configuration constants for RAG system
 # FAISS Vector Store
 FAISS_INDEX_PATH = "./faiss_index"
 EMBEDDING_MODEL = "mxbai-embed-large:latest"  # Ollama embedding model
-EMBEDDING_DIMENSION = 768
+EMBEDDING_DIMENSION = 1024  # mxbai-embed-large outputs 1024 dimensions
 
 # Text Splitting
-CHUNK_SIZE = 500
-CHUNK_OVERLAP = 100
+CHUNK_SIZE = 800  # Increased for better context
+CHUNK_OVERLAP = 150
 SEPARATORS = ["\n\n", "\n", ". ", " ", ""]
 
 # Ollama LLM
@@ -20,7 +20,7 @@ LLM_TOP_P = 0.9
 
 # Retrieval
 TOP_K_RESULTS = 5
-SIMILARITY_THRESHOLD = 0.3
+SIMILARITY_THRESHOLD = 0.0  # Use all results, filter by score instead
 
 # Data
 DATA_FILE = "./teachers.json"

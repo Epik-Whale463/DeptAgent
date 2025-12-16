@@ -55,6 +55,12 @@ class FAISSVectorStore:
             dimension = embeddings_array.shape[1]
             self.index = faiss.IndexFlatL2(dimension)  # L2 distance metric
             print(f"Created new FAISS index with dimension {dimension}")
+        else:
+            # Verify dimension matches
+            current_dim = self.index.d
+            new_dim = embeddings_array.shape[1]
+            if current_dim != new_dim:
+                print(f"⚠ Warning: Dimension mismatch! Index has {current_dim}, new embeddings have {new_dim}")
         
         # Add embeddings to index
         self.index.add(embeddings_array)

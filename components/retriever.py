@@ -37,15 +37,11 @@ class Retriever:
         """
         results = self.vector_store.search(query, k=self.top_k)
         
-        # Filter by similarity threshold and return documents
+        # Return all results without filtering by threshold
+        # (threshold already applied during search)
         retrieved_docs = []
         for doc, distance, metadata in results:
-            # Convert L2 distance to similarity score (0-1)
-            # Lower distance = higher similarity
-            similarity = 1 / (1 + distance)
-            
-            if similarity >= self.similarity_threshold:
-                retrieved_docs.append(doc)
+            retrieved_docs.append(doc)
         
         return retrieved_docs
     
@@ -66,8 +62,7 @@ class Retriever:
             # Convert L2 distance to similarity score (0-1)
             similarity = 1 / (1 + distance)
             
-            if similarity >= self.similarity_threshold:
-                scored_results.append((doc, similarity, metadata))
+            scored_results.append((doc, similarity, metadata))
         
         return scored_results
     
