@@ -92,13 +92,14 @@ class RAGAgent:
         self.vector_store.add_documents(split_documents, None)
         print()
     
-    def query(self, question: str, verbose: bool = False) -> str:
+    def query(self, question: str, verbose: bool = False, show_context: bool = False) -> str:
         """
         Query the RAG system
         
         Args:
             question: User question
             verbose: Whether to print intermediate steps
+            show_context: Whether to print retrieved documents
             
         Returns:
             Generated answer
@@ -117,7 +118,8 @@ class RAGAgent:
         
         if verbose:
             print(f"Retrieved {len(retrieved_docs)} relevant documents")
-            print(f"\nContext:\n{context}\n")
+            if show_context:
+                print(f"\nContext:\n{context}\n")
         
         # Generate answer
         if verbose:
@@ -198,8 +200,8 @@ Answer:"""
                 if not question:
                     continue
                 
-                # Query with verbose output
-                self.query(question, verbose=True)
+                # Query without showing context (set show_context=True to show documents)
+                self.query(question, verbose=True, show_context=False)
             
             except KeyboardInterrupt:
                 print("\nGoodbye!")
@@ -231,6 +233,11 @@ def main():
         help="Use streaming output"
     )
     parser.add_argument(
+        "-c", "--show-context",
+        action="store_true",
+        help="Show retrieved documents (context)"
+    )
+    parser.add_argument(
         "--rebuild",
         action="store_true",
         help="Rebuild FAISS index from scratch"
@@ -246,7 +253,7 @@ def main():
         if args.stream:
             agent.query_stream(args.query)
         else:
-            agent.query(args.query, verbose=True)
+            agent.query(args.query, verbose=True, show_context=args.show_context)
     elif args.interactive:
         agent.interactive_mode()
     else:
