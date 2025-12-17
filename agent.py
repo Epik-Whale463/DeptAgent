@@ -160,8 +160,8 @@ Answer:"""
         context = self.retriever.format_context(retrieved_docs)
         
         # Generate answer with streaming
-        system_prompt = """You are an expert assistant answering questions about teachers and academic staff.
-Use the provided context to answer questions accurately. If the information is not available in the context, 
+        system_prompt = f"""You are an expert assistant answering questions about teachers and academic staff.
+Use the provided {context} to answer questions accurately. If the information is not available in the {context}, 
 say so clearly. Keep answers concise and informative."""
         
         prompt = f"""Context:
