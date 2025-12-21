@@ -1,66 +1,87 @@
+import os
+# FORCE Single GPU mode
+#os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+#os.environ["WANDB_DISABLED"] = "true"
+
 import torch
 from unsloth import FastLanguageModel
 from datasets import load_dataset
 from trl import SFTTrainer
 from transformers import TrainingArguments
-from unsloth.chat_templates import get_chat_template # ADD THIS
+from unsloth.chat_templates import get_chat_template
 
 # 1. Configuration
-model_name = "unsloth/gemma-3-1b-it" 
-max_seq_length = 2048                
-load_in_4bit = True                  
+model_name = "unsloth/mistral-7b-instruct-v0.3-bnb-4bit"
+max_seq_length = 2048
+load_in_4bit = True
 
 # 2. Load Model & Tokenizer
 model, tokenizer = FastLanguageModel.from_pretrained(
     model_name = model_name,
     max_seq_length = max_seq_length,
     load_in_4bit = load_in_4bit,
-    device_map = "auto",             
+    device_map = "auto",
 )
 
-# 3. Add Template & Formatting Function (THE FIX)
+# 3. Apply the Mistral Chat Template (NOT Llama-3.2 for Mistral models)
 tokenizer = get_chat_template(
     tokenizer,
-    chat_template = "gemma", # Use Gemma specific tokens
+    chat_template = "mistral", # Use "mistral" for Mistral models
 )
 
+# 4. Define the Alpaca Style Prompt (Standard for your Instruction/Output data)
+alpaca_prompt = """Below is an instruction that describes a task. Write a response that appropriately completes the request.
+
+### Instruction:
+{}
+
+### Response:
+{}"""
+
 def formatting_prompts_func(examples):
-    convos = examples["messages"]
-    texts = [tokenizer.apply_chat_template(convo, tokenize = False, add_generation_prompt = False) for convo in convos]
+    instructions = examples["instruction"]
+    outputs      = examples["output"]
+    texts = []
+    for instruction, output in zip(instructions, outputs):
+        # We combine instruction and output into a single text block
+        text = alpaca_prompt.format(instruction, output) + tokenizer.eos_token
+        texts.append(text)
     return { "text" : texts, }
 
-# 4. Add LoRA Adapters
+# 5. Add LoRA Adapters
 model = FastLanguageModel.get_peft_model(
     model,
-    r = 16,                          
+    r = 16,
     target_modules = ["q_proj", "k_proj", "v_proj", "o_proj",
                       "gate_proj", "up_proj", "down_proj",],
     lora_alpha = 16,
-    lora_dropout = 0,                
-    bias = "none",    
-    use_gradient_checkpointing = "unsloth", 
+    lora_dropout = 0,
+    bias = "none",
+    use_gradient_checkpointing = "unsloth",
+    random_state = 3407,
 )
 
-# 5. Load and Map Dataset
-dataset = load_dataset("json", data_files="train_chat.jsonl", split="train")
-dataset = dataset.map(formatting_prompts_func, batched = True,) # ADD THIS MAP STEP
+# 6. Load and Format Dataset
+# Standard JSON loading handles lists []
+dataset = load_dataset("json", data_files="vvit_finetune.jsonl", split="train")
+dataset = dataset.map(formatting_prompts_func, batched = True)
 
-# 6. Training Setup
+# 7. Training Arguments
 trainer = SFTTrainer(
     model = model,
     tokenizer = tokenizer,
     train_dataset = dataset,
-    dataset_text_field = "text", # Now matches the output of formatting_prompts_func
+    dataset_text_field = "text",
     max_seq_length = max_seq_length,
     dataset_num_proc = 2,
     args = TrainingArguments(
-        per_device_train_batch_size = 4,
-        gradient_accumulation_steps = 4,
+        per_device_train_batch_size = 8,
+        gradient_accumulation_steps = 1,
         warmup_steps = 5,
-        max_steps = 60,               
+        max_steps = 60,
         learning_rate = 2e-4,
-        fp16 = not torch.cuda.is_bf16_supported(),
-        bf16 = torch.cuda.is_bf16_supported(), 
+        fp16 = False,
+        bf16 = True,
         logging_steps = 1,
         optim = "adamw_8bit",
         weight_decay = 0.01,
@@ -70,12 +91,12 @@ trainer = SFTTrainer(
     ),
 )
 
-# 7. Start Training
-print("Starting Fine-tuning on Dual L40S...")
+# 8. Train
+print("Starting Stable Mistral Training...")
 trainer.train()
 
-# 8. Export to GGUF for Ollama
+# 9. Export to Ollama (GGUF)
 print("Exporting to Ollama format...")
-model.save_pretrained_gguf("vvit_gemma_model", tokenizer, quantization_method = "q4_k_m")
+model.save_pretrained_gguf("vvit_mistral_model", tokenizer, quantization_method = "q4_k_m")
 
-print("Complete! Use: 'ollama create vvit_model -f vvit_gemma_model/Modelfile'")
+print("Done! Run: 'ollama create vvit_mistral -f vvit_mistral_model/Modelfile'")
