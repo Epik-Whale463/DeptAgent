@@ -2,6 +2,7 @@ import os
 # FORCE Single GPU mode
 #os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 #os.environ["WANDB_DISABLED"] = "true"
+os.environ["CUDA_LAUNCH_BLOCKING"] = "1"  # Better error messages
 
 import torch
 from unsloth import FastLanguageModel
@@ -65,6 +66,7 @@ trainer = SFTTrainer(
     dataset_text_field = "text",
     max_seq_length = max_seq_length,
     dataset_num_proc = 2,
+    packing = False,  # Disable packing to avoid tokenization issues
     args = TrainingArguments(
         per_device_train_batch_size = 8,
         gradient_accumulation_steps = 1,
