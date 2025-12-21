@@ -6,7 +6,7 @@ from peft import PeftModel
 base_model_path = "mistralai/Mistral-7B-Instruct-v0.3"
 adapter_path = "./vvit-mistral-7b-final"
 
-# 2. Load the base model (using bf16 to match your L40S capability)
+# 2. Load the base model
 print("Loading base model...")
 base_model = AutoModelForCausalLM.from_pretrained(
     base_model_path,
@@ -19,20 +19,28 @@ print("Loading VVIT adapters...")
 model = PeftModel.from_pretrained(base_model, adapter_path)
 tokenizer = AutoTokenizer.from_pretrained(base_model_path)
 
+# --- CRITICAL FIXES START ---
+model.eval() # 1. Set to evaluation mode to stop gradient/dropout behavior
+tokenizer.pad_token = tokenizer.eos_token # 2. Fix uninitialized padding token
+tokenizer.padding_side = "left" # 3. Causal LMs must pad on the left for inference
+# --- CRITICAL FIXES END ---
+
 # 4. Define the test prompt
-# Use the same Mistral [INST] format used during training
 question = "Who is the Chairman of VVIT and what is the college's NAAC grade?"
 prompt = f"<s>[INST] {question} [/INST]"
 
-# 5. Generate Response
-inputs = tokenizer(prompt, return_tensors="pt").to("cuda")
+# 5. Generate Response with stability settings
+inputs = tokenizer(prompt, return_tensors="pt", padding=True).to("cuda")
+
+print("Generating...")
 with torch.no_grad():
     outputs = model.generate(
-        **inputs, 
-        max_new_tokens=150, 
-        temperature=0.7, 
-        do_sample=True,
-        pad_token_id=tokenizer.eos_token_id
+        input_ids=inputs.input_ids,
+        attention_mask=inputs.attention_mask,
+        max_new_tokens=150,
+        do_sample=False, # 4. Use Greedy decoding first; it is mathematically safer
+        pad_token_id=tokenizer.pad_token_id,
+        eos_token_id=tokenizer.eos_token_id
     )
 
 # 6. Print Output
