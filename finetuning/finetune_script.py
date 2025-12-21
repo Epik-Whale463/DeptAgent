@@ -29,24 +29,7 @@ tokenizer = get_chat_template(
     chat_template = "mistral", # Use "mistral" for Mistral models
 )
 
-# 4. Define the Alpaca Style Prompt (Standard for your Instruction/Output data)
-alpaca_prompt = """Below is an instruction that describes a task. Write a response that appropriately completes the request.
-
-### Instruction:
-{}
-
-### Response:
-{}"""
-
-def formatting_prompts_func(examples):
-    instructions = examples["instruction"]
-    outputs      = examples["output"]
-    texts = []
-    for instruction, output in zip(instructions, outputs):
-        # We combine instruction and output into a single text block
-        text = alpaca_prompt.format(instruction, output) + tokenizer.eos_token
-        texts.append(text)
-    return { "text" : texts, }
+# 4. No custom formatting needed - dataset is in chat format with "messages"
 
 # 5. Add LoRA Adapters
 model = FastLanguageModel.get_peft_model(
@@ -62,16 +45,15 @@ model = FastLanguageModel.get_peft_model(
 )
 
 # 6. Load and Format Dataset
-# Standard JSON loading handles lists []
-dataset = load_dataset("json", data_files="vvit_finetune.jsonl", split="train")
-dataset = dataset.map(formatting_prompts_func, batched = True)
+# Chat format JSONL - dataset already has "messages" field
+dataset = load_dataset("json", data_files="train_chat.jsonl", split="train")
 
 # 7. Training Arguments
 trainer = SFTTrainer(
     model = model,
     tokenizer = tokenizer,
     train_dataset = dataset,
-    dataset_text_field = "text",
+    dataset_text_field = "messages",
     max_seq_length = max_seq_length,
     dataset_num_proc = 2,
     args = TrainingArguments(
