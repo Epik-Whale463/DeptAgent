@@ -1,0 +1,10 @@
+# Use the GGUF file you just created
+FROM ./vvit-mistral-7b.gguf
+
+# Use the Mistral v0.3 Chat Template
+TEMPLATE "<s>[INST] {{ .Prompt }} [/INST]"
+
+# Set specific parameters for stability
+PARAMETER stop "[INST]"
+PARAMETER stop "[/INST]"
+PARAMETER temperature 0.7
