@@ -14,7 +14,7 @@ def format_instruction(sample):
     assistant_resp = sample['messages'][2]['content']
     return f"<s>[INST] {user_query} [/INST] {assistant_resp} </s>"
 
-# 3. Training Configuration (Remove max_seq_length from here)
+# 3. Training Configuration
 sft_config = SFTConfig(
     output_dir="./vvit-mistral-7b",
     per_device_train_batch_size=4,
@@ -23,17 +23,19 @@ sft_config = SFTConfig(
     num_train_epochs=5,
     bf16=True,
     logging_steps=5,
-    packing=False,
+    packing=False,           # Must be in SFTConfig
+    max_length=512,          # RENAMED from max_seq_length and moved here
     report_to="none",
 )
 
-# 4. Initialize Trainer (Pass max_seq_length here instead)
+# 4. Initialize Trainer
 trainer = SFTTrainer(
     model=model_id,
     train_dataset=dataset,
     args=sft_config,
     formatting_func=format_instruction,
-    max_seq_length=512, # Pass as a direct argument
+    # REMOVED: max_seq_length (It is now in sft_config as max_length)
+    # REMOVED: packing (It is now in sft_config)
 )
 
 # 5. Start Training
