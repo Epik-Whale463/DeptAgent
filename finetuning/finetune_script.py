@@ -31,6 +31,14 @@ tokenizer = get_chat_template(
 
 # 4. No custom formatting needed - dataset is in chat format with "messages"
 
+def formatting_func(examples):
+    """Convert messages to formatted text using the chat template"""
+    texts = []
+    for messages in examples["messages"]:
+        text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=False)
+        texts.append(text)
+    return {"text": texts}
+
 # 5. Add LoRA Adapters
 model = FastLanguageModel.get_peft_model(
     model,
@@ -47,13 +55,14 @@ model = FastLanguageModel.get_peft_model(
 # 6. Load and Format Dataset
 # Chat format JSONL - dataset already has "messages" field
 dataset = load_dataset("json", data_files="train_chat.jsonl", split="train")
+dataset = dataset.map(formatting_func, batched=True)
 
 # 7. Training Arguments
 trainer = SFTTrainer(
     model = model,
     tokenizer = tokenizer,
     train_dataset = dataset,
-    dataset_text_field = "messages",
+    dataset_text_field = "text",
     max_seq_length = max_seq_length,
     dataset_num_proc = 2,
     args = TrainingArguments(
